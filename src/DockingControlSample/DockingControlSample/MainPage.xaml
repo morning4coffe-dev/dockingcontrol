@@ -1,0 +1,8 @@
+﻿<Page x:Class="DockingControlSample.MainPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:local="using:DockingControlSample"
+      Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+  <local:DockingControl />
+</Page>
