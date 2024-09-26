@@ -37,7 +37,7 @@ public sealed partial class DockArea : UserControl
     public void ShowDragIndicator()
     {
         PanelContainer.Background = PanelContainer.BorderBrush;
-        PanelContainer.Background.Opacity = 0.5;
+        PanelContainer.Background.Opacity = 0.2;
     }
 
     public void HideDragIndicator()

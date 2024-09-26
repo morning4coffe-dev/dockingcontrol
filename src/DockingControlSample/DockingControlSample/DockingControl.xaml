@@ -19,10 +19,10 @@
             Click="OnAddPanelClicked"
             Margin="10" />
 
-    <Grid x:Name="DCHolder"
-          Grid.Row="1">
+    <local:DockPanel x:Name="DCHolder"
+                     Grid.Row="1">
       <!-- add docking areas here to ther -->
 
-    </Grid>
+    </local:DockPanel>
   </Grid>
 </UserControl>

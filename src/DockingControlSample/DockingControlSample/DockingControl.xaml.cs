@@ -47,7 +47,7 @@ public sealed partial class DockingControl : UserControl
         Grid.SetRow(_newDockCreator, 1);
     }
 
-    private void CreateNewDockArea()
+    private DockArea CreateNewDockArea()
     {
         DockArea newDockArea = new()
         {
@@ -59,8 +59,11 @@ public sealed partial class DockingControl : UserControl
         _dockingAreas.Add(newDockArea);
         DCHolder.Children.Add(newDockArea);
 
-        DCHolder.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        Grid.SetColumn(newDockArea, DCHolder.Children.Count-1);
+        //DCHolder.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        //Grid.SetColumn(newDockArea, DCHolder.Children.Count-1);
+        DockPanel.SetDock(newDockArea, (Dock)new Random().Next(0, 4));
+
+        return newDockArea;
     }
 
     private void OnDragStarted(object sender, PointerRoutedEventArgs e)
@@ -159,7 +162,8 @@ public sealed partial class DockingControl : UserControl
 
                 if (newDockCreatorBounds.Contains(pointerPosition))
                 {
-                    CreateNewDockArea();
+                    var area = CreateNewDockArea();
+                    SnapToGrid(_currentDraggingPanel, area);
                 }
                 else
                 {
@@ -184,8 +188,8 @@ public sealed partial class DockingControl : UserControl
 
         if (closestArea != null)
         {
-            var areaTransform = closestArea.TransformToVisual(this);
-            Point areaPosition = areaTransform.TransformPoint(new Point(0, 0));
+            //var areaTransform = closestArea.TransformToVisual(this);
+            //Point areaPosition = areaTransform.TransformPoint(new Point(0, 0));
 
             _newDockCreator.Visibility = Visibility.Visible;
         }
