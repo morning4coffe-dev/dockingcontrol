@@ -14,16 +14,53 @@ public sealed partial class DockingControl : UserControl
     private Border _currentDraggingPanel;
     private int _panelCount = 0;
 
-    private List<DockArea> DockingAreas =>
-    [
-        LeftDockArea,
-        CenterDockArea,
-        RightDockArea
-    ];
+    private Border _newDockCreator;
+
+    private List<DockArea> _dockingAreas = [];
 
     public DockingControl()
     {
         this.InitializeComponent();
+
+        CreateDockCreator();
+
+        for (int i = 0; i < 3; i++)
+        {
+            CreateNewDockArea();
+        }
+    }
+
+    // creates the "star" for user to create new controls
+    private void CreateDockCreator()
+    {
+        _newDockCreator = new Border
+        {
+            Background = new SolidColorBrush(Colors.Yellow),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Width = 150,
+            Height = 100,
+            Visibility = Visibility.Collapsed
+        };
+
+        MainGrid.Children.Add(_newDockCreator);
+        Grid.SetRow(_newDockCreator, 1);
+    }
+
+    private void CreateNewDockArea()
+    {
+        DockArea newDockArea = new()
+        {
+            Name = $"DockArea_{_dockingAreas.Count + 1}",
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Stretch
+        };
+
+        _dockingAreas.Add(newDockArea);
+        DCHolder.Children.Add(newDockArea);
+
+        DCHolder.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        Grid.SetColumn(newDockArea, DCHolder.Children.Count-1);
     }
 
     private void OnDragStarted(object sender, PointerRoutedEventArgs e)
@@ -114,12 +151,28 @@ public sealed partial class DockingControl : UserControl
             }
             else
             {
-                var closestArea = GetClosestDockArea(pointerPosition);
-                SnapToGrid(_currentDraggingPanel, closestArea);
+                GeneralTransform transform = _newDockCreator.TransformToVisual(MainGrid);
+                Point newDockCreatorPosition = transform.TransformPoint(new Point(0, 0));
+
+                Rect newDockCreatorBounds = new(newDockCreatorPosition.X, newDockCreatorPosition.Y,
+                                                _newDockCreator.ActualWidth, _newDockCreator.ActualHeight);
+
+                if (newDockCreatorBounds.Contains(pointerPosition))
+                {
+                    CreateNewDockArea();
+                }
+                else
+                {
+                    var closestArea = GetClosestDockArea(pointerPosition);
+                    SnapToGrid(_currentDraggingPanel, closestArea);
+                }
             }
+
+            _currentDraggingPanel.RenderTransform = new TranslateTransform();
 
             // Hide visual feedback
             HideDropIndicators();
+            _newDockCreator.Visibility = Visibility.Collapsed;
         }
 
         _currentDraggingPanel = null;
@@ -127,13 +180,19 @@ public sealed partial class DockingControl : UserControl
 
     private void ShowDropIndicator(Point pointerPosition)
     {
-        var parentGrid = FindParentGrid(_currentDraggingPanel);
-        if (parentGrid == null)
-        {
-            return;
-        }
-
         var closestArea = GetClosestDockArea(pointerPosition);
+
+        if (closestArea != null)
+        {
+            var areaTransform = closestArea.TransformToVisual(this);
+            Point areaPosition = areaTransform.TransformPoint(new Point(0, 0));
+
+            _newDockCreator.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            _newDockCreator.Visibility = Visibility.Collapsed;
+        }
 
         HideDropIndicators();
         closestArea?.ShowDragIndicator();
@@ -141,7 +200,7 @@ public sealed partial class DockingControl : UserControl
 
     private void HideDropIndicators()
     {
-        foreach (var area in DockingAreas)
+        foreach (var area in _dockingAreas)
         {
             area.HideDragIndicator();
         }
@@ -149,7 +208,7 @@ public sealed partial class DockingControl : UserControl
 
     private DockArea FindDockAreaContainingPanel(Border panel)
     {
-        foreach (var area in DockingAreas)
+        foreach (var area in _dockingAreas)
         {
             if (area.ContainsPanel(panel))
             {
@@ -173,11 +232,8 @@ public sealed partial class DockingControl : UserControl
 
         var newContent = new Grid
         {
-            Background = new SolidColorBrush(Colors.LightCoral),
-            Width = 300,
-            Height = 200,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Stretch,
         };
 
         newContent.Children.Add(panel);
@@ -207,7 +263,7 @@ public sealed partial class DockingControl : UserControl
         DockArea closestArea = null;
         double closestDistance = double.MaxValue;
 
-        foreach (var area in DockingAreas)
+        foreach (var area in _dockingAreas)
         {
             var areaTransform = area.TransformToVisual(this);
             Point areaPosition = areaTransform.TransformPoint(new Point(0, 0));
@@ -261,10 +317,17 @@ public sealed partial class DockingControl : UserControl
             Name = $"DraggablePanel_{_panelCount++}",
         };
 
+        newPanel.Child = new TextBlock()
+        {
+            Text = newPanel.Name,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+
         newPanel.PointerPressed += OnDragStarted;
         newPanel.PointerMoved += OnPointerMoved;
         newPanel.PointerReleased += OnDragCompleted;
 
-        LeftDockArea.AddPanel(newPanel);
+        _dockingAreas[1].AddPanel(newPanel);
     }
 }

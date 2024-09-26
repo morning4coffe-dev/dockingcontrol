@@ -7,12 +7,6 @@
              mc:Ignorable="d">
 
   <Grid x:Name="MainGrid">
-    <Grid.ColumnDefinitions>
-      <ColumnDefinition Width="*" />
-      <ColumnDefinition Width="*" />
-      <ColumnDefinition Width="*" />
-    </Grid.ColumnDefinitions>
-
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
@@ -25,17 +19,10 @@
             Click="OnAddPanelClicked"
             Margin="10" />
 
-    <!-- this will be dynamic -->
-    <local:DockArea x:Name="LeftDockArea"
-                    Grid.Column="0"
-                    Grid.Row="1" />
+    <Grid x:Name="DCHolder"
+          Grid.Row="1">
+      <!-- add docking areas here to ther -->
 
-    <local:DockArea x:Name="CenterDockArea"
-                    Grid.Column="1"
-                    Grid.Row="1" />
-
-    <local:DockArea x:Name="RightDockArea"
-                    Grid.Column="2"
-                    Grid.Row="1" />
+    </Grid>
   </Grid>
 </UserControl>
