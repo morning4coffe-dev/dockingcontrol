@@ -9,7 +9,7 @@ public sealed partial class DockArea : UserControl
     {
         this.InitializeComponent();
 
-        Random random = new Random();
+        Random random = new();
         byte r = (byte)random.Next(256);
         byte g = (byte)random.Next(256);
         byte b = (byte)random.Next(256);
@@ -38,10 +38,14 @@ public sealed partial class DockArea : UserControl
     {
         PanelContainer.Background = PanelContainer.BorderBrush;
         PanelContainer.Background.Opacity = 0.2;
+
+        DockHelperStar.Visibility = Visibility.Visible;
     }
 
     public void HideDragIndicator()
     {
         PanelContainer.Background = new SolidColorBrush(Colors.Transparent);
+
+        DockHelperStar.Visibility = Visibility.Collapsed;
     }
 }

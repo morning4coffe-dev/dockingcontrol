@@ -35,21 +35,5 @@
     <UnoFeatures>
     </UnoFeatures>
   </PropertyGroup>
-  <ItemGroup>
-    <None Remove="DockArea.xaml" />
-    <None Remove="DockingControl.xaml" />
-  </ItemGroup>
-  <ItemGroup>
-    <UpToDateCheckInput Remove="DockingControl.xaml" />
-  </ItemGroup>
-  <ItemGroup>
-    <Page Update="DockArea.xaml">
-      <XamlRuntime>$(DefaultXamlRuntime)</XamlRuntime>
-      <SubType>Designer</SubType>
-    </Page>
-  </ItemGroup>
-  <ItemGroup>
-    <UpToDateCheckInput Remove="DockArea.xaml" />
-  </ItemGroup>
 
 </Project>

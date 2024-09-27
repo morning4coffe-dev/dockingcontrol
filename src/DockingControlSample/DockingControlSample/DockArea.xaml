@@ -6,7 +6,41 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
 
+  <Grid x:Name="PanelHolder">
+    <StackPanel x:Name="PanelContainer"
+                BorderThickness="1" />
 
-  <StackPanel x:Name="PanelContainer" BorderThickness="1" />
+    <TextBlock Text="{x:Bind Name}"
+               HorizontalAlignment="Center"
+               VerticalAlignment="Center" />
+
+    <Grid x:Name="DockHelperStar" RowSpacing="5" ColumnSpacing="5">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition />
+        <ColumnDefinition />
+        <ColumnDefinition />
+      </Grid.ColumnDefinitions>
+      <Grid.RowDefinitions>
+        <RowDefinition />
+        <RowDefinition />
+        <RowDefinition />
+      </Grid.RowDefinitions>
+
+      <local:DockHelper Grid.Row="0"
+                        Grid.Column="1"
+                        DockPosition="Top" />
+      <local:DockHelper Grid.Row="1"
+                        Grid.Column="0"
+                        DockPosition="Left" />
+      <local:DockHelper Grid.Row="1"
+                        Grid.Column="1" />
+      <local:DockHelper Grid.Row="1"
+                        Grid.Column="2"
+                        DockPosition="Right" />
+      <local:DockHelper Grid.Row="2"
+                        Grid.Column="1"
+                        DockPosition="Bottom" />
+    </Grid>
+  </Grid>
 
 </UserControl>

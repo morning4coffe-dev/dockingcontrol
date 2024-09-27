@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Microsoft.UI;
 using Microsoft.UI.Xaml.Input;
 using Windows.Foundation;
@@ -14,40 +13,16 @@ public sealed partial class DockingControl : UserControl
     private Border _currentDraggingPanel;
     private int _panelCount = 0;
 
-    private Border _newDockCreator;
-
-    private List<DockArea> _dockingAreas = [];
+    private List<DockArea> _dockingAreas = new();
+    private Window? _secondaryWindow;
 
     public DockingControl()
     {
         this.InitializeComponent();
-
-        CreateDockCreator();
-
-        for (int i = 0; i < 3; i++)
-        {
-            CreateNewDockArea();
-        }
+        CreateNewDockArea(Dock.Top);
     }
 
-    // creates the "star" for user to create new controls
-    private void CreateDockCreator()
-    {
-        _newDockCreator = new Border
-        {
-            Background = new SolidColorBrush(Colors.Yellow),
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-            Width = 150,
-            Height = 100,
-            Visibility = Visibility.Collapsed
-        };
-
-        MainGrid.Children.Add(_newDockCreator);
-        Grid.SetRow(_newDockCreator, 1);
-    }
-
-    private DockArea CreateNewDockArea()
+    private DockArea CreateNewDockArea(Dock position)
     {
         DockArea newDockArea = new()
         {
@@ -59,31 +34,22 @@ public sealed partial class DockingControl : UserControl
         _dockingAreas.Add(newDockArea);
         DCHolder.Children.Add(newDockArea);
 
-        //DCHolder.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        //Grid.SetColumn(newDockArea, DCHolder.Children.Count-1);
-        DockPanel.SetDock(newDockArea, (Dock)new Random().Next(0, 4));
+        DockPanel.SetDock(newDockArea, position);
 
         return newDockArea;
     }
 
     private void OnDragStarted(object sender, PointerRoutedEventArgs e)
     {
-        _currentDraggingPanel = sender as Border; // Get the current dragged panel - change from Border to element when added
+        _currentDraggingPanel = sender as Border;
 
         if (_currentDraggingPanel == null || _isDragging)
         {
             return;
         }
 
-        // ensure the panel is not already captured
-        if (_currentDraggingPanel.PointerCaptures?.Count > 0)
-        {
-            return;
-        }
+        _startPointerPosition = e.GetCurrentPoint(this).Position;
 
-        _isDragging = true;
-
-        // initialize the transform if not already set
         if (_currentDraggingPanel.RenderTransform == null || _currentDraggingPanel.RenderTransform is not TranslateTransform)
         {
             _transform = new TranslateTransform();
@@ -94,13 +60,8 @@ public sealed partial class DockingControl : UserControl
             _transform = (TranslateTransform)_currentDraggingPanel.RenderTransform;
         }
 
-        // capture the initial pointer position
-        _startPointerPosition = e.GetCurrentPoint(this).Position;
-
-        // visual feedback of panel - lower the opacity while dragging
         _currentDraggingPanel.Opacity = 0.4;
-
-        // capture the pointer for drag
+        _isDragging = true;
         _currentDraggingPanel.CapturePointer(e.Pointer);
     }
 
@@ -108,21 +69,15 @@ public sealed partial class DockingControl : UserControl
     {
         if (_isDragging && _currentDraggingPanel != null)
         {
-            // Get the current pointer position
-            Point currentPointerPosition = e.GetCurrentPoint(this).Position;
-
-            // Calculate the movement offset
+            Point currentPointerPosition = e.GetCurrentPoint(Window.Current.Content).Position;
             double offsetX = currentPointerPosition.X - _startPointerPosition.X;
             double offsetY = currentPointerPosition.Y - _startPointerPosition.Y;
 
-            // Update the position of the draggable panel using the transform
             _transform.X += offsetX;
             _transform.Y += offsetY;
 
-            // Update the starting position for the next move
             _startPointerPosition = currentPointerPosition;
 
-            // Show visual feedback
             ShowDropIndicator(currentPointerPosition);
         }
     }
@@ -132,82 +87,133 @@ public sealed partial class DockingControl : UserControl
         if (_isDragging && _currentDraggingPanel != null)
         {
             _isDragging = false;
-
-            // Restore the opacity to normal after dragging
             _currentDraggingPanel.Opacity = 1.0;
 
-            // Release the pointer capture
             if (_currentDraggingPanel.PointerCaptures?.Count > 0)
             {
                 _currentDraggingPanel.ReleasePointerCaptures();
             }
 
-            // Get the pointer's position relative to the window
             Point pointerPosition = e.GetCurrentPoint(Window.Current.Content).Position;
 
             if (IsPointerOutsideAppWindow(pointerPosition))
             {
                 OpenNewWindowWithPanel(_currentDraggingPanel);
-
                 var currentDockArea = FindDockAreaContainingPanel(_currentDraggingPanel);
                 currentDockArea?.RemovePanel(_currentDraggingPanel);
+                HideDropIndicators();
             }
             else
             {
-                GeneralTransform transform = _newDockCreator.TransformToVisual(MainGrid);
-                Point newDockCreatorPosition = transform.TransformPoint(new Point(0, 0));
-
-                Rect newDockCreatorBounds = new(newDockCreatorPosition.X, newDockCreatorPosition.Y,
-                                                _newDockCreator.ActualWidth, _newDockCreator.ActualHeight);
-
-                if (newDockCreatorBounds.Contains(pointerPosition))
-                {
-                    var area = CreateNewDockArea();
-                    SnapToGrid(_currentDraggingPanel, area);
-                }
-                else
-                {
-                    var closestArea = GetClosestDockArea(pointerPosition);
-                    SnapToGrid(_currentDraggingPanel, closestArea);
-                }
+                HandleDragInsideOrBackToMainWindow(pointerPosition);
             }
 
             _currentDraggingPanel.RenderTransform = new TranslateTransform();
-
-            // Hide visual feedback
-            HideDropIndicators();
-            _newDockCreator.Visibility = Visibility.Collapsed;
         }
 
         _currentDraggingPanel = null;
     }
 
-    private void ShowDropIndicator(Point pointerPosition)
+    private void HandleDragInsideOrBackToMainWindow(Point pointerPosition)
     {
-        var closestArea = GetClosestDockArea(pointerPosition);
+        var currentDockArea = FindDockAreaContainingPanel(_currentDraggingPanel);
 
-        if (closestArea != null)
+        // TODO for more Windows add a tag (thanks to which, we could recognize the actual Window,
+        // now only one window open works correctly) and not use Grid for a detection method
+        bool isInSecondaryWindow = _currentDraggingPanel.Parent is Grid && _secondaryWindow != null;
+
+        if (currentDockArea != null)
         {
-            //var areaTransform = closestArea.TransformToVisual(this);
-            //Point areaPosition = areaTransform.TransformPoint(new Point(0, 0));
-
-            _newDockCreator.Visibility = Visibility.Visible;
+            HandleDragInsideMainWindow(pointerPosition, currentDockArea);
         }
         else
         {
-            _newDockCreator.Visibility = Visibility.Collapsed;
+            DockArea closestDockArea = GetClosestDockArea(pointerPosition);
+            if (closestDockArea != null)
+            {
+                HandleDragInsideMainWindow(pointerPosition, closestDockArea);
+
+                if (isInSecondaryWindow)
+                {
+                    _secondaryWindow?.Close();
+                    _secondaryWindow = null;
+                }
+            }
         }
 
         HideDropIndicators();
-        closestArea?.ShowDragIndicator();
     }
 
-    private void HideDropIndicators()
+    private void HandleDragInsideMainWindow(Point pointerPosition, DockArea currentDockArea)
     {
-        foreach (var area in _dockingAreas)
+        var dockHelpers = FindDockHelpersInVisualTree(currentDockArea);
+        bool newDockAreaCreated = false;
+
+        foreach (var dockHelper in dockHelpers)
         {
-            area.HideDragIndicator();
+            GeneralTransform transform = dockHelper.TransformToVisual(Window.Current.Content);
+            Point dockHelperPosition = transform.TransformPoint(new Point(0, 0));
+            Rect dockHelperBounds = new Rect(dockHelperPosition.X, dockHelperPosition.Y,
+                                              dockHelper.ActualWidth, dockHelper.ActualHeight);
+
+            if (dockHelperBounds.Contains(pointerPosition))
+            {
+                if (dockHelper.DockPosition != null)
+                {
+                    currentDockArea.RemovePanel(_currentDraggingPanel);
+                    var newDockArea = CreateNewDockArea((Dock)dockHelper.DockPosition);
+                    SnapToGrid(_currentDraggingPanel, newDockArea);
+                    newDockAreaCreated = true;
+                }
+
+                HideDropIndicators();
+                return;
+            }
         }
+
+        if (!newDockAreaCreated)
+        {
+            var closestArea = GetClosestDockArea(pointerPosition);
+            SnapToGrid(_currentDraggingPanel, closestArea);
+        }
+
+        HideDropIndicators();
+    }
+
+    private void OpenNewWindowWithPanel(Border panel)
+    {
+        _secondaryWindow = new Window();
+
+        var newContent = new Grid
+        {
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Stretch,
+        };
+
+        if (panel.Parent is Panel parentPanel)
+        {
+            parentPanel.Children.Remove(panel);
+        }
+
+        newContent.Children.Add(panel);
+
+        panel.PointerPressed += OnDragStarted;
+        panel.PointerMoved += OnPointerMoved;
+        panel.PointerReleased += OnDragCompleted;
+
+        _secondaryWindow.Content = newContent;
+        _secondaryWindow.Activate();
+    }
+
+    private void SnapToGrid(Border panel, DockArea snapArea)
+    {
+        if (snapArea != null && panel.Parent != snapArea)
+        {
+            var currentDockArea = FindDockAreaContainingPanel(panel);
+            currentDockArea?.RemovePanel(panel);
+            snapArea.AddPanel(panel);
+        }
+        panel.RenderTransform = new TranslateTransform();
     }
 
     private DockArea FindDockAreaContainingPanel(Border panel)
@@ -222,44 +228,18 @@ public sealed partial class DockingControl : UserControl
         return null;
     }
 
-    private static bool IsPointerOutsideAppWindow(Point pointerPosition)
+    private bool IsPointerOutsideAppWindow(Point pointerPosition)
     {
         var mainWindowBounds = Window.Current.Bounds;
-
         return (pointerPosition.X < 0 || pointerPosition.Y < 0 ||
                 pointerPosition.X > mainWindowBounds.Width || pointerPosition.Y > mainWindowBounds.Height);
     }
 
-    private static void OpenNewWindowWithPanel(Border panel)
+    private bool IsPointerInsideMainWindow(Point pointerPosition)
     {
-        Window newWindow = new();
-
-        var newContent = new Grid
-        {
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            VerticalAlignment = VerticalAlignment.Stretch,
-        };
-
-        newContent.Children.Add(panel);
-
-        newWindow.Content = newContent;
-        newWindow.Activate();
-    }
-
-    private void SnapToGrid(Border panel, DockArea snapArea)
-    {
-        if (snapArea != null && panel.Parent != snapArea)
-        {
-            var currentDockArea = FindDockAreaContainingPanel(panel);
-            currentDockArea?.RemovePanel(panel);
-
-            //FMI - to debug the snap area
-            Console.WriteLine($"Area: {panel.Name}, Rect: {snapArea.Name}");
-
-            snapArea.AddPanel(panel);
-        }
-
-        panel.RenderTransform = new TranslateTransform();
+        var mainWindowBounds = Window.Current.Bounds;
+        return (pointerPosition.X >= 0 && pointerPosition.Y >= 0 &&
+                pointerPosition.X <= mainWindowBounds.Width && pointerPosition.Y <= mainWindowBounds.Height);
     }
 
     private DockArea GetClosestDockArea(Point pointerPosition)
@@ -271,19 +251,16 @@ public sealed partial class DockingControl : UserControl
         {
             var areaTransform = area.TransformToVisual(this);
             Point areaPosition = areaTransform.TransformPoint(new Point(0, 0));
-
             var areaRect = new Rect(areaPosition.X, areaPosition.Y, area.ActualWidth, area.ActualHeight);
 
             if (areaRect.Contains(pointerPosition))
             {
                 closestArea = area;
-                break; // no need to check further if already inside an area
+                break;
             }
 
-            // calculate distance to the center of the area for snapping
             var areaCenter = new Point(areaRect.Left + areaRect.Width / 2, areaRect.Top + areaRect.Height / 2);
-            double distance = Math.Sqrt(Math.Pow(pointerPosition.X - areaCenter.X, 2) + Math.Pow(pointerPosition.Y - areaCenter.Y, 2));
-
+            double distance = Math.Sqrt(Math.Pow(areaCenter.X - pointerPosition.X, 2) + Math.Pow(areaCenter.Y - pointerPosition.Y, 2));
             if (distance < closestDistance)
             {
                 closestDistance = distance;
@@ -294,18 +271,35 @@ public sealed partial class DockingControl : UserControl
         return closestArea;
     }
 
-    // helper method to find the parent Grid in the visual tree
-    private static Grid FindParentGrid(DependencyObject child)
+    private void ShowDropIndicator(Point pointerPosition)
     {
-        while (child != null)
+        var closestArea = GetClosestDockArea(pointerPosition);
+        HideDropIndicators();
+        closestArea?.ShowDragIndicator();
+    }
+
+    private void HideDropIndicators()
+    {
+        foreach (var area in _dockingAreas)
         {
-            if (child is Grid parentGrid)
-            {
-                return parentGrid;
-            }
-            child = VisualTreeHelper.GetParent(child);
+            area.HideDragIndicator();
         }
-        return null;
+    }
+
+    private static IEnumerable<DockHelper> FindDockHelpersInVisualTree(DependencyObject parent)
+    {
+        var dockHelpers = new List<DockHelper>();
+        int childCount = VisualTreeHelper.GetChildrenCount(parent);
+        for (int i = 0; i < childCount; i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is DockHelper dockHelper)
+            {
+                dockHelpers.Add(dockHelper);
+            }
+            dockHelpers.AddRange(FindDockHelpersInVisualTree(child));
+        }
+        return dockHelpers;
     }
 
     private void OnAddPanelClicked(object sender, RoutedEventArgs e)
@@ -332,6 +326,7 @@ public sealed partial class DockingControl : UserControl
         newPanel.PointerMoved += OnPointerMoved;
         newPanel.PointerReleased += OnDragCompleted;
 
-        _dockingAreas[1].AddPanel(newPanel);
+        var dockArea = GetClosestDockArea(new Point(0, 0));
+        dockArea.AddPanel(newPanel);
     }
 }
