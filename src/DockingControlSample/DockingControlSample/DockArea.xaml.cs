@@ -18,7 +18,6 @@ public sealed partial class DockArea : UserControl
         HideDragIndicator();
     }
 
-
     public void AddPanel(Border panel)
     {
         PanelContainer.Children.Add(panel);
@@ -48,4 +47,7 @@ public sealed partial class DockArea : UserControl
 
         DockHelperStar.Visibility = Visibility.Collapsed;
     }
+
+    public bool IsEmpty()
+        => PanelContainer.Children.Count == 0;
 }

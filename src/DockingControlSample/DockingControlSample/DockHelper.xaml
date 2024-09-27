@@ -4,11 +4,11 @@
              xmlns:local="using:DockingControlSample"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             Height="40"
+             Width="40"
              mc:Ignorable="d">
 
-  <Border Background="Red"
-          Height="40"
-          Width="40">
+  <Border Background="Red">
     <TextBlock Text="{x:Bind DockPosition}"
                HorizontalAlignment="Center"
                VerticalAlignment="Center" />

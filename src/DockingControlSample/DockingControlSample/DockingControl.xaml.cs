@@ -22,7 +22,7 @@ public sealed partial class DockingControl : UserControl
         CreateNewDockArea(Dock.Top);
     }
 
-    private DockArea CreateNewDockArea(Dock position)
+    private DockArea CreateNewDockArea(Dock position, int recommendedWidthOrHeight = 0)
     {
         DockArea newDockArea = new()
         {
@@ -30,6 +30,18 @@ public sealed partial class DockingControl : UserControl
             HorizontalAlignment = HorizontalAlignment.Stretch,
             VerticalAlignment = VerticalAlignment.Stretch
         };
+
+        if (recommendedWidthOrHeight > 0)
+        {
+            if (position == Dock.Left || position == Dock.Right)
+            {
+                newDockArea.Width = recommendedWidthOrHeight;
+            }
+            else
+            {
+                newDockArea.Height = recommendedWidthOrHeight;
+            }
+        }
 
         _dockingAreas.Add(newDockArea);
         DCHolder.Children.Add(newDockArea);
@@ -69,7 +81,7 @@ public sealed partial class DockingControl : UserControl
     {
         if (_isDragging && _currentDraggingPanel != null)
         {
-            Point currentPointerPosition = e.GetCurrentPoint(Window.Current.Content).Position;
+            Point currentPointerPosition = e.GetCurrentPoint(this).Position;
             double offsetX = currentPointerPosition.X - _startPointerPosition.X;
             double offsetY = currentPointerPosition.Y - _startPointerPosition.Y;
 
@@ -94,13 +106,13 @@ public sealed partial class DockingControl : UserControl
                 _currentDraggingPanel.ReleasePointerCaptures();
             }
 
-            Point pointerPosition = e.GetCurrentPoint(Window.Current.Content).Position;
+            Point pointerPosition = e.GetCurrentPoint(this).Position;
 
             if (IsPointerOutsideAppWindow(pointerPosition))
             {
                 OpenNewWindowWithPanel(_currentDraggingPanel);
                 var currentDockArea = FindDockAreaContainingPanel(_currentDraggingPanel);
-                currentDockArea?.RemovePanel(_currentDraggingPanel);
+                RemovePanelFromArea(currentDockArea, _currentDraggingPanel);
                 HideDropIndicators();
             }
             else
@@ -151,7 +163,7 @@ public sealed partial class DockingControl : UserControl
 
         foreach (var dockHelper in dockHelpers)
         {
-            GeneralTransform transform = dockHelper.TransformToVisual(Window.Current.Content);
+            GeneralTransform transform = dockHelper.TransformToVisual(this);
             Point dockHelperPosition = transform.TransformPoint(new Point(0, 0));
             Rect dockHelperBounds = new Rect(dockHelperPosition.X, dockHelperPosition.Y,
                                               dockHelper.ActualWidth, dockHelper.ActualHeight);
@@ -160,8 +172,9 @@ public sealed partial class DockingControl : UserControl
             {
                 if (dockHelper.DockPosition != null)
                 {
-                    currentDockArea.RemovePanel(_currentDraggingPanel);
-                    var newDockArea = CreateNewDockArea((Dock)dockHelper.DockPosition);
+                    RemovePanelFromArea(currentDockArea, _currentDraggingPanel);
+
+                    var newDockArea = CreateNewDockArea((Dock)dockHelper.DockPosition, 350);
                     SnapToGrid(_currentDraggingPanel, newDockArea);
                     newDockAreaCreated = true;
                 }
@@ -205,12 +218,28 @@ public sealed partial class DockingControl : UserControl
         _secondaryWindow.Activate();
     }
 
+    private void RemovePanelFromArea(DockArea dockArea, Border panel)
+    {
+        if (dockArea is not { })
+        {
+            return;
+        }
+
+        dockArea.RemovePanel(panel);
+
+        if (dockArea.IsEmpty() && _dockingAreas.Count > 1)
+        {
+            _dockingAreas.Remove(dockArea);
+            DCHolder.Children.Remove(dockArea);
+        }
+    }
+
     private void SnapToGrid(Border panel, DockArea snapArea)
     {
         if (snapArea != null && panel.Parent != snapArea)
         {
             var currentDockArea = FindDockAreaContainingPanel(panel);
-            currentDockArea?.RemovePanel(panel);
+            RemovePanelFromArea(currentDockArea, panel);
             snapArea.AddPanel(panel);
         }
         panel.RenderTransform = new TranslateTransform();
@@ -229,18 +258,12 @@ public sealed partial class DockingControl : UserControl
     }
 
     private bool IsPointerOutsideAppWindow(Point pointerPosition)
-    {
-        var mainWindowBounds = Window.Current.Bounds;
-        return (pointerPosition.X < 0 || pointerPosition.Y < 0 ||
-                pointerPosition.X > mainWindowBounds.Width || pointerPosition.Y > mainWindowBounds.Height);
-    }
+        => (pointerPosition.X < 0 || pointerPosition.Y < 0 ||
+            pointerPosition.X > ActualWidth || pointerPosition.Y > ActualHeight);
 
     private bool IsPointerInsideMainWindow(Point pointerPosition)
-    {
-        var mainWindowBounds = Window.Current.Bounds;
-        return (pointerPosition.X >= 0 && pointerPosition.Y >= 0 &&
-                pointerPosition.X <= mainWindowBounds.Width && pointerPosition.Y <= mainWindowBounds.Height);
-    }
+        => (pointerPosition.X >= 0 && pointerPosition.Y >= 0 &&
+            pointerPosition.X <= ActualWidth && pointerPosition.Y <= ActualHeight);
 
     private DockArea GetClosestDockArea(Point pointerPosition)
     {
