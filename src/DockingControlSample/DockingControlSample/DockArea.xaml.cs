@@ -1,4 +1,5 @@
 using Microsoft.UI;
+using Windows.ApplicationModel.DataTransfer;
 using Windows.UI;
 
 namespace DockingControlSample;
@@ -18,19 +19,19 @@ public sealed partial class DockArea : UserControl
         HideDragIndicator();
     }
 
-    public void AddPanel(Border panel)
+    public void AddPanel(TabViewItem panel)
     {
-        PanelContainer.Children.Add(panel);
+        PanelContainer.TabItems.Add(panel);
     }
 
-    public bool ContainsPanel(Border panel)
+    public bool ContainsPanel(TabViewItem panel)
     {
-        return PanelContainer.Children.Contains(panel);
+        return PanelContainer.TabItems.Contains(panel);
     }
 
-    public void RemovePanel(Border panel)
+    public void RemovePanel(TabViewItem panel)
     {
-        PanelContainer.Children.Remove(panel);
+        PanelContainer.TabItems.Remove(panel);
     }
 
     public void ShowDragIndicator()
@@ -49,5 +50,23 @@ public sealed partial class DockArea : UserControl
     }
 
     public bool IsEmpty()
-        => PanelContainer.Children.Count == 0;
+        => PanelContainer.TabItems.Count == 0;
+
+    private void PanelContainer_TabStripDrop(object sender, DragEventArgs e)
+    {
+        e.AcceptedOperation = DataPackageOperation.Move;
+
+        if (e.Data.GetView().AvailableFormats.Contains("UNODataFormat"))
+        {
+            e.Data.GetView().GetDataAsync("UNODataFormat").AsTask().ContinueWith(task =>
+            {
+                if (task.Result is TabViewItem panel)
+                {
+                    AddPanel(panel);
+                }
+            });
+        }
+
+        HideDragIndicator();
+    }
 }

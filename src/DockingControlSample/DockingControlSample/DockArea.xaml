@@ -7,14 +7,20 @@
              mc:Ignorable="d">
 
   <Grid x:Name="PanelHolder">
-    <StackPanel x:Name="PanelContainer"
-                BorderThickness="1" />
+    <TabView x:Name="PanelContainer"
+             HorizontalContentAlignment="Stretch"
+             VerticalAlignment="Stretch"
+             CanDragTabs="True"
+             TabStripDrop="PanelContainer_TabStripDrop"
+             BorderThickness="1" />
 
     <TextBlock Text="{x:Bind Name}"
-               HorizontalAlignment="Center"
-               VerticalAlignment="Center" />
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center" />
 
-    <Grid x:Name="DockHelperStar" RowSpacing="5" ColumnSpacing="5">
+    <Grid x:Name="DockHelperStar"
+          RowSpacing="5"
+          ColumnSpacing="5">
       <Grid.ColumnDefinitions>
         <ColumnDefinition />
         <ColumnDefinition />
