@@ -20,6 +20,7 @@
             Margin="10" />
 
     <local:DockPanel x:Name="DCHolder"
+                     LastChildFill="True"
                      Grid.Row="1">
       <!-- add docking areas here to ther -->
 

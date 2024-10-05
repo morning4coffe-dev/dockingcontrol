@@ -54,19 +54,19 @@ public sealed partial class DockArea : UserControl
 
     private void PanelContainer_TabStripDrop(object sender, DragEventArgs e)
     {
-        e.AcceptedOperation = DataPackageOperation.Move;
+        //e.AcceptedOperation = DataPackageOperation.Move;
 
-        if (e.Data.GetView().AvailableFormats.Contains("UNODataFormat"))
-        {
-            e.Data.GetView().GetDataAsync("UNODataFormat").AsTask().ContinueWith(task =>
-            {
-                if (task.Result is TabViewItem panel)
-                {
-                    AddPanel(panel);
-                }
-            });
-        }
+        //if (e.Data.GetView().AvailableFormats.Contains("UNODataFormat"))
+        //{
+        //    e.Data.GetView().GetDataAsync("UNODataFormat").AsTask().ContinueWith(task =>
+        //    {
+        //        if (task.Result is TabViewItem panel)
+        //        {
+        //            AddPanel(panel);
+        //        }
+        //    });
+        //}
 
-        HideDragIndicator();
+        //HideDragIndicator();
     }
 }

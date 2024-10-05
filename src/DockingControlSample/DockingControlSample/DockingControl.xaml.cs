@@ -11,7 +11,7 @@ public sealed partial class DockingControl : UserControl
     private TranslateTransform _transform;
 
     private bool _isDragging = false;
-    private TabViewItem _currentDraggingPanel;
+    private TabViewItem? _currentDraggingPanel;
     private int _panelCount = 0;
 
     private List<DockArea> _dockingAreas = new();
@@ -71,11 +71,13 @@ public sealed partial class DockingControl : UserControl
 
     private void OnAddPanelClicked(object sender, RoutedEventArgs e)
     {
+        var panelName = $"DraggablePanel_{_panelCount++}";
         TabViewItem newPanel = new()
         {
             HorizontalAlignment = HorizontalAlignment.Stretch,
             VerticalAlignment = VerticalAlignment.Stretch,
             Background = new SolidColorBrush(Colors.Blue),
+            Name = panelName,
             CanDrag = true,
             IsHitTestVisible = true,
             Header = new Border()
@@ -83,14 +85,15 @@ public sealed partial class DockingControl : UserControl
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 VerticalAlignment = VerticalAlignment.Stretch,
                 Background = new SolidColorBrush(Colors.Red),
-                Child = new TextBlock() { Text = $"DraggablePanel_{_panelCount++}" }
+                Child = new TextBlock() { Text = panelName }
             },
 
             Content = new Border()
             {
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 VerticalAlignment = VerticalAlignment.Stretch,
-                Background = new SolidColorBrush(Colors.LightGray),
+                Background = new SolidColorBrush(Colors.Purple),
+                Child = new TextBlock() { Text = panelName }
             }
         };
 
@@ -149,7 +152,24 @@ public sealed partial class DockingControl : UserControl
 
             _startPointerPosition = currentPointerPosition;
 
-            ShowDropIndicator(currentPointerPosition);
+            if (IsPointerOutsideAppWindow(_startPointerPosition))
+            {
+                if (_currentDraggingPanel.PointerCaptures?.Count > 0)
+                {
+                    _currentDraggingPanel.ReleasePointerCaptures();
+                }
+
+                OpenNewWindowWithPanel(_currentDraggingPanel);
+                var currentDockArea = FindDockAreaContainingPanel(_currentDraggingPanel);
+                RemovePanelFromArea(currentDockArea, _currentDraggingPanel);
+                HideDropIndicators();
+
+                _isDragging = false;
+            }
+            else
+            {
+                ShowDropIndicator(currentPointerPosition);
+            }
         }
     }
 
@@ -165,17 +185,7 @@ public sealed partial class DockingControl : UserControl
                 _currentDraggingPanel.ReleasePointerCaptures();
             }
 
-            if (IsPointerOutsideAppWindow(_startPointerPosition))
-            {
-                OpenNewWindowWithPanel(_currentDraggingPanel);
-                var currentDockArea = FindDockAreaContainingPanel(_currentDraggingPanel);
-                RemovePanelFromArea(currentDockArea, _currentDraggingPanel);
-                HideDropIndicators();
-            }
-            else
-            {
-                HandleDragInsideOrBackToMainWindow(_startPointerPosition);
-            }
+            HandleDragInsideOrBackToMainWindow(_startPointerPosition);
 
             _currentDraggingPanel.RenderTransform = new TranslateTransform();
         }
@@ -185,19 +195,43 @@ public sealed partial class DockingControl : UserControl
 
     private void OpenNewWindowWithPanel(TabViewItem panel)
     {
-        _secondaryWindow = new Window();
+        _secondaryWindow = new Window
+        {
+            Title = panel.Name.ToLower(),
+            //ExtendsContentIntoTitleBar = true
+        };
+
         var newContent = new Grid
         {
             HorizontalAlignment = HorizontalAlignment.Stretch,
             VerticalAlignment = VerticalAlignment.Stretch,
         };
 
+        newContent.RowDefinitions.Add(new RowDefinition() { Height = GridLength.Auto });
+        newContent.RowDefinitions.Add(new RowDefinition());
+
+        //Find the tabbar and remove its child
         if (panel.Parent is Panel parentPanel)
         {
             parentPanel.Children.Remove(panel);
         }
 
-        newContent.Children.Add(panel);
+        newContent.Children.Add(new TextBlock { Text = _secondaryWindow.Title });
+
+        var exitButton = new Button
+        {
+            Content = "Close",
+            Background = new SolidColorBrush(Colors.Bisque),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+
+        exitButton.Click += (s, e) => { _secondaryWindow.Close(); };
+        newContent.Children.Add(panel.Content as Border);
+        newContent.Children.Add(new Button());
+        Grid.SetRow(exitButton, 2);
+        Grid.SetRow(panel.Content as Border, 2);
+
         _secondaryWindow.Content = newContent;
         _secondaryWindow.Activate();
     }
